@@ -241,6 +241,21 @@
               </template>
               <span>{{ $t('dataTable.JOIN') }}</span>
             </v-tooltip>
+
+            <v-tooltip top>
+              <template v-slot:activator="{ on }">
+                <v-btn
+                  id="liveStream"
+                  icon
+                  class="mx-0"
+                  v-on="on"
+                  @click="liveStream(item)"
+                >
+                  <v-icon>mdi-cctv</v-icon>
+                </v-btn>
+              </template>
+              <span>{{ $t('dataTable.LIVE_STREAM') }}</span>
+            </v-tooltip>
           </v-layout>
         </td>
       </template>
@@ -265,6 +280,63 @@
     </v-data-table>
     <ErrorMessage />
     <SuccessMessage />
+    <v-dialog
+      v-model="liveDialog"
+      max-width="800px"
+      content-class="dlgNewEditItem"
+    >
+      <v-card>
+        <v-card-title>
+          <span class="headline">{{ 'Live Streaming' }}</span>
+        </v-card-title>
+
+        <v-card-text>
+          <v-container grid-list-md>
+            <v-layout wrap>
+              <template>
+                <v-flex xs24 md6>
+                  <label for="meeting_id">{{ $t('common.meeting_id') }}</label>
+                  <div name="meeting_id">
+                    {{ liveItem.id }}
+                  </div>
+                </v-flex>
+              </template>
+
+              <v-flex xs24 md12>
+                <v-text-field
+                  id="url"
+                  name="url"
+                  v-model="liveItem.url"
+                  :label="$t('meetings.headers.url')"
+                  autocomplete="off"
+                ></v-text-field>
+              </v-flex>
+
+              <v-flex xs24 md12>
+                <v-text-field
+                  id="key"
+                  name="key"
+                  v-model="liveItem.key"
+                  :label="$t('meetings.headers.key')"
+                  autocomplete="off"
+                ></v-text-field>
+              </v-flex>
+            </v-layout>
+          </v-container>
+        </v-card-text>
+
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn
+            color="green"
+            text
+            @click="startLiveStream"
+            class="btnLiveStream"
+            >{{ $t('dataTable.START_STREAM') }}</v-btn
+          >
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
     <div
       class="parent-frame"
       id="zoom-call"
@@ -304,7 +376,7 @@ export default {
     zoom
   },
   created() {
-    usersApi.getUserInfo('me').then((result) => {
+    usersApi.getUserInfo('6connextest@gmail.com').then((result) => {
       console.error('UserInfo: ', result)
     })
     const socket = io(SERVER_URL, {
@@ -348,7 +420,7 @@ export default {
         case 'meeting.deleted':
         case 'meeting.updated': {
           await this.getMeetings({
-            userId: 'me'
+            userId: '6connextest@gmail.com'
           })
         }
       }
@@ -393,6 +465,8 @@ export default {
       dataTableLoading: true,
       delayTimer: null,
       dialog: false,
+      liveDialog: false,
+      liveItem: { key: '', url: '' },
       zoomCall: 'none',
       pagination: {},
       editedItem: {
@@ -483,12 +557,15 @@ export default {
     dialog(value) {
       return value ? true : this.close()
     },
+    liveDialog(value) {
+      return value ? true : this.closeLiveDialog()
+    },
     pagination: {
       async handler() {
         try {
           this.dataTableLoading = true
           await this.getMeetings({
-            userId: 'me'
+            userId: '6connextest@gmail.com'
           })
           this.dataTableLoading = false
           // eslint-disable-next-line no-unused-vars
@@ -534,6 +611,16 @@ export default {
         }
       }, 300)
     },
+    closeLiveDialog() {
+      this.liveDialog = false
+      setTimeout(() => {
+        this.liveItem = {
+          id: '',
+          key: '',
+          url: ''
+        }
+      }, 300)
+    },
     trueFalse(value) {
       return value
         ? '<i aria-hidden="true" class="v-icon mdi mdi-check green--text" style="font-size: 16px;"></i>'
@@ -563,7 +650,7 @@ export default {
         if (response) {
           this.dataTableLoading = true
           await this.deleteMeeting(item.id)
-          await this.getMeetings({ userId: 'me' })
+          await this.getMeetings({ userId: '6connextest@gmail.com' })
           this.dataTableLoading = false
         }
         // eslint-disable-next-line no-unused-vars
@@ -580,7 +667,28 @@ export default {
         /* eslint-disable-next-line camelcase  */
         join_before_host: true,
         /* eslint-disable-next-line camelcase  */
-        use_pmi: false
+        use_pmi: false,
+        /* eslint-disable-next-line camelcase  */
+        breakout_room: {
+          enable: true,
+          rooms: [
+            {
+              name: 'ui room1',
+              participants: [
+                'james.user01@somemail1234.com',
+                'james.user02@somemail1234.com'
+              ]
+            },
+            {
+              name: 'ui room2',
+              participants: ['james.user03@somemail1234.com']
+            }
+          ],
+          /* eslint-disable-next-line camelcase  */
+          host_video: false,
+          /* eslint-disable-next-line camelcase  */
+          participant_video: false
+        }
       }
       try {
         this.dataTableLoading = true
@@ -599,11 +707,11 @@ export default {
               password: this.editedItem.password
             }
           })
-          await this.getMeetings({ userId: 'me' })
+          await this.getMeetings({ userId: '6connextest@gmail.com' })
           this.dataTableLoading = false
         } else {
           const newMeeting = {
-            userId: 'me',
+            userId: '6connextest@gmail.com',
             meeting: {
               ...this.editedItem,
               duration: parseInt(this.editedItem.duration),
@@ -615,7 +723,7 @@ export default {
             }
           }
           await this.createMeeting(newMeeting)
-          await this.getMeetings({ userId: 'me' })
+          await this.getMeetings({ userId: '6connextest@gmail.com' })
           this.dataTableLoading = false
         }
         this.close()
@@ -637,6 +745,15 @@ export default {
       } = await meetingsApi.getSignature(item.id, 1)
       const meetingDetail = await this.getMeeting(item.id)
       this.startMeeting(item.id, signature, apiKey, meetingDetail.password)
+    },
+    liveStream(item) {
+      console.log('Live Stream: ', item)
+      this.liveDialog = true
+      this.liveItem = { ...this.liveItem, ...item }
+    },
+    startLiveStream() {
+      console.log('Start Live Stream: ', this.liveItem)
+      this.liveDialog = false
     },
     async joinToIframe(item) {
       // show iframe

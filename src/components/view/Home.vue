@@ -150,7 +150,7 @@ export default {
           }
           this.notifications.push(notification)
           await this.getUserMeetings({
-            userId: 'me',
+            userId: '6connextest@gmail.com',
             params: {
               type: 'upcoming'
             }
@@ -169,7 +169,7 @@ export default {
           if (userMeeting) {
             this.notifications.push(notification)
             await this.getUserMeetings({
-              userId: 'me',
+              userId: '6connextest@gmail.com',
               params: {
                 type: 'upcoming'
               }
@@ -188,7 +188,7 @@ export default {
           // )
           // if (userMeeting) {
           await this.getUserMeetings({
-            userId: 'me',
+            userId: '6connextest@gmail.com',
             params: {
               type: 'upcoming'
             }
@@ -235,7 +235,7 @@ export default {
       meetingConfig: {
         role: 0,
         userEmail: 'majo@majo.com',
-        userName: 'User'
+        userName: `User-${Math.floor(Math.random() * 10)}`
       }
     }
   },
@@ -345,7 +345,7 @@ export default {
         try {
           this.dataTableLoading = true
           await this.getUserMeetings({
-            userId: 'me',
+            userId: '6connextest@gmail.com',
             params: {
               type: 'upcoming'
             }
