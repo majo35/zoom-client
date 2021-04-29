@@ -39,7 +39,8 @@
     "DELETED_SUCCESSFULLY": "Deleted successfully",
     "CREATED": "Created At",
     "UPDATED": "Updated At",
-    "GO_BACK": "Go back"
+    "GO_BACK": "Go back",
+    "meeting_id": "Meeting ID"
   },
   "loading": {
     "PLEASE_WAIT": "Please wait..."
@@ -80,7 +81,9 @@
     "NO_RESULTS": "No results",
     "OF": "of",
     "SEARCH": "Search",
-    "JOIN": "Join"
+    "JOIN": "Join",
+    "LIVE_STREAM": "Live Streaming",
+    "START_STREAM": "Start Live Streaming"
   },
   "meetings": {
     "TITLE": "Meetings",
@@ -96,7 +99,9 @@
       "agenda": "Description",
       "duration": "Duration (min)",
       "start_time": "Start time",
-      "password": "Password"
+      "password": "Password",
+      "url": "URL",
+      "key": "Stream key"
     }
   },
   "cities": {

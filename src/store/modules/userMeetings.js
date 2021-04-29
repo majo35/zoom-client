@@ -34,6 +34,22 @@ const actions = {
           handleError(error, commit, reject)
         })
     })
+  },
+  getUserAdditionalMeetings({ commit }, { userId, params }) {
+    return new Promise((resolve, reject) => {
+      meetingsApi
+        .getListMeetings(userId, params)
+        .then((response) => {
+          console.error('Additional: ', response.data.meetings)
+          commit(types.ADD_USER_MEETINGS, response.data.meetings)
+          /* eslint-disable-next-line camelcase  */
+          commit(types.TOTAL_USER_MEETINGS_INC, response.data.total_records)
+          resolve()
+        })
+        .catch((error) => {
+          handleError(error, commit, reject)
+        })
+    })
   }
 }
 
@@ -43,6 +59,12 @@ const mutations = {
   },
   [types.USER_TOTAL_MEETINGS](state, value) {
     state.userTotalMeetings = value
+  },
+  [types.ADD_USER_MEETINGS](state, meetings) {
+    state.userMeetings = [...state.userMeetings, ...meetings]
+  },
+  [types.TOTAL_USER_MEETINGS_INC](state, value) {
+    state.userTotalMeetings += value
   }
 }
 

@@ -23,6 +23,22 @@ const actions = {
         })
     })
   },
+  getAdditionalMeetings({ commit }, { userId, params }) {
+    return new Promise((resolve, reject) => {
+      meetingsApi
+        .getListMeetings(userId, params)
+        .then((response) => {
+          console.error('Additional: ', response.data.meetings)
+          commit(types.ADD_MEETINGS, response.data.meetings)
+          /* eslint-disable-next-line camelcase  */
+          commit(types.TOTAL_MEETINGS_INC, response.data.total_records)
+          resolve()
+        })
+        .catch((error) => {
+          handleError(error, commit, reject)
+        })
+    })
+  },
   createMeeting({ commit }, payload) {
     return new Promise((resolve, reject) => {
       meetingsApi
@@ -97,6 +113,12 @@ const mutations = {
   },
   [types.TOTAL_MEETINGS](state, value) {
     state.totalMeetings = value
+  },
+  [types.ADD_MEETINGS](state, meetings) {
+    state.meetings = [...state.meetings, ...meetings]
+  },
+  [types.TOTAL_MEETINGS_INC](state, value) {
+    state.totalMeetings += value
   }
 }
 

@@ -64,6 +64,20 @@
                           </v-flex>
                         </template>
 
+                        <v-flex xs24 md12 v-if="!editedItem.id">
+                          <v-switch
+                            v-model="concurrencyMeeting1"
+                            :label="`Concurrency Meeting: ${concurrencyMeeting1.toString()}`"
+                          ></v-switch>
+                        </v-flex>
+
+                        <!--                        <v-flex xs24 md12 v-if="!editedItem.id">-->
+                        <!--                          <v-switch-->
+                        <!--                            v-model="concurrencyMeeting2"-->
+                        <!--                            :label="`concurrencyMeeting2: ${concurrencyMeeting2.toString()}`"-->
+                        <!--                          ></v-switch>-->
+                        <!--                        </v-flex>-->
+
                         <v-flex xs12 md6>
                           <ValidationProvider
                             rules="required"
@@ -375,10 +389,11 @@ export default {
   components: {
     zoom
   },
-  created() {
+  async created() {
     usersApi.getUserInfo('6connextest@gmail.com').then((result) => {
-      console.error('UserInfo: ', result)
+      this.userId = result.data.id
     })
+
     const socket = io(SERVER_URL, {
       auth: {
         token: 'abc'
@@ -414,14 +429,26 @@ export default {
       switch (payload.response.event) {
         case 'meeting.ended': {
           this.zoomCall = 'none'
+          if (
+            /* eslint-disable-next-line camelcase  */
+            payload.response.payload.object.host_id &&
+            this.userId &&
+            /* eslint-disable-next-line camelcase  */
+            payload.response.payload.object.host_id !== this.userId
+          ) {
+            this.dataTableLoading = true
+            await this.deleteMeeting(payload.response.payload.object.id)
+            /* eslint-disable-next-line camelcase  */
+            await usersApi.deleteUser(payload.response.payload.object.host_id)
+            await this.loadAllMeetings()
+            this.dataTableLoading = false
+          }
           break
         }
         case 'meeting.created':
         case 'meeting.deleted':
         case 'meeting.updated': {
-          await this.getMeetings({
-            userId: '6connextest@gmail.com'
-          })
+          await this.loadAllMeetings()
         }
       }
     })
@@ -461,6 +488,7 @@ export default {
   },
   data() {
     return {
+      userId: null,
       ZOOM_CALL_URL,
       dataTableLoading: true,
       delayTimer: null,
@@ -474,6 +502,8 @@ export default {
         start_time: new Date()
       },
       defaultItem: {},
+      concurrencyMeeting1: false,
+      concurrencyMeeting2: false,
       meetingConfig: {
         leaveUrl: 'http://localhost:8080/admin/meetings',
         role: 1,
@@ -496,6 +526,14 @@ export default {
           sortable: false,
           width: 100
         },
+
+        {
+          text: 'Host ID',
+          align: 'left',
+          sortable: true,
+          value: 'host_id'
+        },
+
         {
           text: this.$i18n.t('meetings.topic'),
           align: 'left',
@@ -562,28 +600,57 @@ export default {
     },
     pagination: {
       async handler() {
+        this.dataTableLoading = true
         try {
-          this.dataTableLoading = true
-          await this.getMeetings({
-            userId: '6connextest@gmail.com'
-          })
+          await this.loadAllMeetings()
           this.dataTableLoading = false
           // eslint-disable-next-line no-unused-vars
-        } catch (error) {
-          this.dataTableLoading = false
-        }
+        } catch (error) {}
+        this.dataTableLoading = false
       },
       deep: true
     }
   },
   methods: {
-    eventHandler(e) {
+    async loadAllMeetings() {
+      await this.getMeetings({
+        userId: '6connextest@gmail.com'
+      })
+      const userListResponse = await usersApi.getListUsers()
+      // console.error('Users: ', userListResponse.data.users)
+      userListResponse.data.users.forEach(async (user) => {
+        try {
+          await this.getAdditionalMeetings({
+            userId: user.email
+          })
+          // eslint-disable-next-line no-unused-vars
+        } catch (error) {}
+      })
+    },
+    /* eslint-disable-next-line max-statements */
+    async eventHandler(e) {
       if (e.data) {
         try {
           const response = JSON.parse(e.data)
           switch (response.type) {
             case 'HIDE_CALL': {
               this.zoomCall = 'none'
+              console.error('UserInfo: ', this.userId)
+              console.error('hostId:', response.data?.hostId)
+              // if (
+              //   response.data?.hostId &&
+              //   this.userId &&
+              //   response.data?.hostId !== this.userId
+              // ) {
+              //   this.dataTableLoading = true
+              //   await this.deleteMeeting(response.data?.meetingId)
+              //   console.error('DELETE USER: ', response.data?.hostId)
+              //   await usersApi.deleteUser(response.data?.hostId)
+              //   await this.getMeetings({ userId: '6connextest@gmail.com' })
+              //   await this.getAdditionalMeetings({ userId: 'majo@majo.com' })
+              //   await this.getAdditionalMeetings({ userId: 'majo@majo2.com' })
+              //   this.dataTableLoading = false
+              // }
               break
             }
           }
@@ -596,7 +663,8 @@ export default {
       'createMeeting',
       'deleteMeeting',
       'getMeeting',
-      'updateMeeting'
+      'updateMeeting',
+      'getAdditionalMeetings'
     ]),
     getFormat(date) {
       window.__localeId__ = this.$store.getters.locale
@@ -650,7 +718,7 @@ export default {
         if (response) {
           this.dataTableLoading = true
           await this.deleteMeeting(item.id)
-          await this.getMeetings({ userId: '6connextest@gmail.com' })
+          await this.loadAllMeetings()
           this.dataTableLoading = false
         }
         // eslint-disable-next-line no-unused-vars
@@ -658,7 +726,7 @@ export default {
         this.dataTableLoading = false
       }
     },
-    async save() {
+    defaultSettings() {
       const settings = {
         /* eslint-disable-next-line camelcase  */
         host_video: false,
@@ -675,13 +743,13 @@ export default {
             {
               name: 'ui room1',
               participants: [
-                'james.user01@somemail1234.com',
-                'james.user02@somemail1234.com'
+                //   'james.user01@somemail1234.com',
+                //   'james.user02@somemail1234.com'
               ]
             },
             {
               name: 'ui room2',
-              participants: ['james.user03@somemail1234.com']
+              participants: [] // ['james.user03@somemail1234.com']
             }
           ],
           /* eslint-disable-next-line camelcase  */
@@ -690,6 +758,35 @@ export default {
           participant_video: false
         }
       }
+      return settings
+    },
+    createUser(email) {
+      return usersApi.createUser({
+        action: 'custCreate',
+        /* eslint-disable-next-line camelcase  */
+        user_info: {
+          email,
+          type: 1,
+          /* eslint-disable-next-line camelcase  */
+          first_name: 'Tom',
+          /* eslint-disable-next-line camelcase  */
+          last_name: 'Jerry'
+        }
+      })
+    },
+    setUpUserSetting(email) {
+      return usersApi.updateUserSettings(email, {
+        /* eslint-disable-next-line camelcase  */
+        in_meeting: {
+          /* eslint-disable-next-line camelcase  */
+          breakout_room: true,
+          /* eslint-disable-next-line camelcase  */
+          allow_live_streaming: false
+        }
+      })
+    },
+    /* eslint-disable-next-line max-statements */
+    async save() {
       try {
         this.dataTableLoading = true
         // Updating item
@@ -707,11 +804,15 @@ export default {
               password: this.editedItem.password
             }
           })
-          await this.getMeetings({ userId: '6connextest@gmail.com' })
+          await this.loadAllMeetings()
           this.dataTableLoading = false
         } else {
+          let userEmail = '6connextest@gmail.com'
+          if (this.concurrencyMeeting1) {
+            userEmail = `user${Math.floor(Math.random() * 100)}@majo.com`
+          }
           const newMeeting = {
-            userId: '6connextest@gmail.com',
+            userId: userEmail,
             meeting: {
               ...this.editedItem,
               duration: parseInt(this.editedItem.duration),
@@ -719,14 +820,26 @@ export default {
               start_time: dayjs(this.editedItem.start_time).format(
                 `YYYY-MM-DDTHH:mm:ss`
               ),
-              settings
+              settings: this.defaultSettings()
             }
           }
-          await this.createMeeting(newMeeting)
-          await this.getMeetings({ userId: '6connextest@gmail.com' })
-          this.dataTableLoading = false
+          if (this.concurrencyMeeting1) {
+            try {
+              await this.createUser(userEmail)
+              await this.setUpUserSetting(userEmail)
+              await this.createMeeting(newMeeting)
+              await this.loadAllMeetings()
+              // eslint-disable-next-line no-unused-vars
+            } catch (e) {}
+          } else {
+            await this.createMeeting(newMeeting)
+            await this.loadAllMeetings()
+          }
         }
+        this.dataTableLoading = false
         this.close()
+        this.concurrencyMeeting1 = false
+        this.concurrencyMeeting2 = false
         return
         // eslint-disable-next-line no-unused-vars
       } catch (error) {
@@ -760,12 +873,18 @@ export default {
       // id zoom-call
       this.zoomCall = 'block'
       const meetingDetail = await this.getMeeting(item.id)
+      /* eslint-disable-next-line camelcase  */
+      console.log('meetingDetail: ', meetingDetail.host_id)
       // Send a message to the child iframe
       const callData = {
         meetingNumber: item.id,
         userName: this.meetingConfig.userName,
         userEmail: this.meetingConfig.userEmail,
         passWord: meetingDetail.password,
+        /* eslint-disable-next-line camelcase  */
+        hostEmail: meetingDetail.host_email,
+        /* eslint-disable-next-line camelcase  */
+        hostId: meetingDetail.host_id,
         role: 1
       }
       this.sendMessage(

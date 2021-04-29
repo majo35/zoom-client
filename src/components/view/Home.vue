@@ -100,6 +100,7 @@ import { mapActions } from 'vuex'
 import io from 'socket.io-client'
 import { SERVER_URL } from '../../plugins/axios'
 import { getFormat } from '../../utils/utils.js'
+import usersApi from '../../services/api/users'
 
 export default {
   metaInfo() {
@@ -149,12 +150,7 @@ export default {
             message: `Created ${payload.response.payload.object.topic}`
           }
           this.notifications.push(notification)
-          await this.getUserMeetings({
-            userId: '6connextest@gmail.com',
-            params: {
-              type: 'upcoming'
-            }
-          })
+          await this.loadAllMeetings()
           break
         }
         case 'meeting.deleted': {
@@ -168,12 +164,7 @@ export default {
           )
           if (userMeeting) {
             this.notifications.push(notification)
-            await this.getUserMeetings({
-              userId: '6connextest@gmail.com',
-              params: {
-                type: 'upcoming'
-              }
-            })
+            await this.loadAllMeetings()
           }
           break
         }
@@ -187,12 +178,7 @@ export default {
           //   (item) => item.id === payload.response.payload.object.id
           // )
           // if (userMeeting) {
-          await this.getUserMeetings({
-            userId: '6connextest@gmail.com',
-            params: {
-              type: 'upcoming'
-            }
-          })
+          await this.loadAllMeetings()
           this.notifications.push(notification)
           // }
           // break
@@ -240,6 +226,27 @@ export default {
     }
   },
   methods: {
+    async loadAllMeetings() {
+      await this.getUserMeetings({
+        userId: '6connextest@gmail.com',
+        params: {
+          type: 'upcoming'
+        }
+      })
+      const userListResponse = await usersApi.getListUsers()
+      // console.error('Users: ', userListResponse.data.users)
+      userListResponse.data.users.forEach(async (user) => {
+        try {
+          await this.getUserAdditionalMeetings({
+            userId: user.email,
+            params: {
+              type: 'upcoming'
+            }
+          })
+          // eslint-disable-next-line no-unused-vars
+        } catch (error) {}
+      })
+    },
     getFormat(date) {
       window.__localeId__ = this.$store.getters.locale
       return getFormat(date, 'iii, MMMM d yyyy, h:mm a')
@@ -250,7 +257,11 @@ export default {
         this.notifications.splice(index, 1)
       }
     },
-    ...mapActions(['getUserMeeting', 'getUserMeetings']),
+    ...mapActions([
+      'getUserMeeting',
+      'getUserMeetings',
+      'getUserAdditionalMeetings'
+    ]),
     eventHandler(e) {
       if (e.data) {
         try {
@@ -344,12 +355,7 @@ export default {
       async handler() {
         try {
           this.dataTableLoading = true
-          await this.getUserMeetings({
-            userId: '6connextest@gmail.com',
-            params: {
-              type: 'upcoming'
-            }
-          })
+          await this.loadAllMeetings()
           this.dataTableLoading = false
           // eslint-disable-next-line no-unused-vars
         } catch (error) {
